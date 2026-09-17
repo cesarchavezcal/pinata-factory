@@ -1,0 +1,12 @@
+# Worktrees
+.worktrees/
+
+# Evidence captures & recordings
+.artifacts/
+*.mp4
+*.ts
+raw.ts
+frame.png
+
+# Local AI runtime state
+.atl/
