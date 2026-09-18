@@ -59,3 +59,6 @@ Do not merge the PR unless explicitly instructed. Keep the worktree until the PR
 | `before-and-after` | `.agents/skills/before-and-after/SKILL.md` | Dual screenshot capture and PR markdown diff table |
 | `greploop` | `.agents/skills/greploop/SKILL.md` | Autonomous Greptile review loop until 5/5 score |
 | `greploop-apps` | `.agents/skills/greploop-apps/SKILL.md` | Greptile loop variant for large PRs bypassing file limits |
+| `grill-me` | `.agents/skills/grill-me/SKILL.md` | Relentless interview to stress-test designs and specs |
+| `playwright-best-practices` | `.agents/skills/playwright-best-practices/SKILL.md` | Resilient E2E Playwright architecture and locator patterns |
+| `changelog-automation` | `.agents/skills/changelog-automation/SKILL.md` | Automated PR evidence and commit parsing into semantic release notes |
