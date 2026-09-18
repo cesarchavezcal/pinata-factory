@@ -1,53 +1,116 @@
 ---
 name: code-structure
-description: "Trigger: duplicate operational logic, action refactoring, or service layer design. Separates business orchestration from reusable mechanics."
-license: MIT
-metadata:
-  author: michaelshimeles
-  version: "2.0"
+description: Use when multiple workflows duplicate the same operational logic, when deciding what belongs in actions vs shared services, or when refactoring repeated operational blocks across domain flows. Use when adding new features that share mechanics with existing ones.
 ---
 
-# Code Structure
+# Service Layer Architecture
 
-Two-layer architecture separating action orchestration from reusable service mechanics.
+## Overview
 
-## Activation Contract
+**Two-layer separation:** Actions orchestrate domain rules (the "why/when"), while a service layer centralizes reusable operational mechanics (the "how").
 
-- **Trigger:** Operational logic duplicated across 2+ workflows, refactoring repeated blocks in action files, or adding features sharing mechanics with existing flows.
-- **Goal:** Move low-level mechanics into composable service functions while keeping business rules in action orchestrators.
+This prevents duplicated code, inconsistent behavior, and bugs fixed in one path but not others.
 
-## Hard Rules
+## When to Use
 
-- Never extract single-use logic (avoid premature abstraction).
-- Never allow service functions to query or mutate database state directly.
-- Service functions must accept explicit parameters and return structured results.
-- Actions must own all business policy, authorization, state transitions, and error classifications.
-- Refactor iteratively: migrate one caller, verify, then migrate remaining callers.
+- Multiple callers need the same low-level operation (sandbox creation, email sending, payment processing)
+- You're copy-pasting operational logic between action files
+- A bug fix in one workflow doesn't propagate to others doing the same thing
+- Adding a new feature that shares mechanics with existing flows
 
-## Decision Gates
+**Don't use when:** Logic is truly domain-specific and used by only one caller.
 
-| Responsibility | Target Layer | Rationale |
+## Core Pattern
+
+```
+Orchestration Layer (Actions)          Service Layer (Shared Mechanics)
+├── owns business rules                ├── owns reusable operations
+├── owns state transitions             ├── owns provider/SDK interactions
+├── owns auth/ownership checks         ├── owns command execution details
+├── owns failure classification        ├── owns health checks / readiness
+├── owns retries / user-facing errors  └── returns structured results
+└── calls service functions
+```
+
+**Rule of thumb:**
+- "What this product flow means" → keep in actions
+- "How to do this operation reliably" → move to service layer
+
+## Quick Reference
+
+| Design Principle | Do | Don't |
 |---|---|---|
-| Business rules, auth checks, state transitions | Action / Orchestration | Represents product intent and user-facing policy |
-| Low-level operations, SDK calls, shell execution | Service Layer | Centralizes operational reliability and mechanics |
-| Logic used by only 1 caller | Action / Inline | Avoid premature complexity |
-| Error retry policy / user error messages | Action / Orchestration | Callers dictate UX and failure tolerance |
+| API shape | Composable capability blocks | One giant "do everything" method |
+| Inputs/outputs | Explicit params, structured returns | Hidden global state, reaching into DB |
+| Migration | Extract one block, replace one caller, verify, then migrate rest | Refactor everything at once |
+| Domain logic | Keep auth, policy, error classification in actions | Let service mutate domain state directly |
+| Extraction trigger | Logic repeated across 2+ callers | Logic used once (over-abstraction) |
 
-## Execution Steps
+## Designing Service Functions
 
-1. Identify operational blocks duplicated across 2 or more callers.
-2. Design a modular service function signature taking explicit arguments and returning typed results.
-3. Extract operational mechanics to the service layer without direct DB access.
-4. Update the first calling action to invoke the new service function.
-5. Run tests, linter, and typecheck to verify the first caller behaves identically.
-6. Progressively migrate remaining callers, verifying each step.
+Design as **capability blocks**, not monoliths:
 
-## Output Contract
+```ts
+// Good: composable, each caller chooses what to use
+createManagedSandbox(...)
+prepareRepo(...)
+detectPackageManager(...)
+installDependencies(...)
+runBuildCommand(...)
+startSandboxRuntime(...)
+```
 
-- Composable service module file exporting explicit parameter and result interfaces.
-- Refactored caller action files containing only orchestration and business policy.
-- Zero typecheck or lint regressions across affected modules.
+Each function should:
+- Accept all required data as **explicit parameters**
+- Return **structured outputs** (e.g., `{ ready, previewUrl, proxyPort }`)
+- Never reach into database/state directly
+- Make failure explicit (structured results, not swallowed errors)
 
-## References
+This lets callers choose strict vs relaxed behavior per flow.
 
-- [Service Layer Guide](references/service-layer-guide.md): Architectural patterns, composability principles, anti-patterns, and email service example.
+## Migration Checklist
+
+When extracting shared logic:
+
+1. Write the flow in action code first (clear behavior)
+2. Mark repeated operational chunks across callers
+3. Extract **only** repeated, non-domain chunks to service
+4. Replace one caller → verify → replace remaining callers
+5. Keep domain policy in actions (auth, status transitions, error classification)
+6. Run verification: typecheck, lint, confirm all flows still work
+
+## Anti-Patterns
+
+| Anti-Pattern | Problem |
+|---|---|
+| **God service** | One huge function hides all control flow |
+| **Leaky service** | Service mutates database tables directly |
+| **Inconsistent API** | Each function uses different argument styles and error semantics |
+| **Over-abstraction** | Extracting logic used by only one caller |
+
+## Example: Email Service (Simple)
+
+```ts
+// emailService.ts — shared mechanics
+export async function sendWelcomeEmail(params: { to: string; name: string }) {
+  const html = `<h1>Welcome ${params.name}</h1>`;
+  await emailProvider.send(params.to, "Welcome", html);
+}
+
+// userSignup.ts — orchestration (owns WHEN to send)
+if (user.marketingOptIn) {
+  await sendWelcomeEmail({ to: user.email, name: user.name });
+}
+
+// adminInvite.ts — orchestration (different business rule, same mechanic)
+await sendWelcomeEmail({ to: invitee.email, name: invitee.name });
+```
+
+## Mental Model
+
+```
+New feature? → Write in action first → See repeated ops? → Extract to service
+                                      → No repetition?  → Keep in action
+```
+
+Your architecture in one sentence: **Actions orchestrate domain rules, while the service layer centralizes reusable operational mechanics with a composable, explicit-input API.**

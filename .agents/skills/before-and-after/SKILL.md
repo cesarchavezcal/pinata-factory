@@ -1,53 +1,124 @@
 ---
 name: before-and-after
-description: "Trigger: take before and after, screenshot comparison, or PR screenshots. Captures and compares web UI states or image files."
-license: MIT
-metadata:
-  author: michaelshimeles
-  version: "2.0"
+description: Captures before/after screenshots of web pages or elements for visual comparison. Use when user says "take before and after", "screenshot comparison", "visual diff", "PR screenshots", "compare old and new", or needs to document UI changes. Accepts two URLs (file://, http://, https://) or two image paths.
+allowed-tools:
+  - Bash(npx @vercel/before-and-after *)
+  - Bash(before-and-after *)
+  - Bash(which before-and-after)
+  - Bash(npm install -g @vercel/before-and-after)
+  - Bash(*/upload-and-copy.sh *)
+  - Bash(curl -s -o /dev/null -w *)
+  - Bash(gh pr view *)
+  - Bash(gh pr edit *)
+  - Bash(vercel inspect *)
+  - Bash(vercel whoami)
+  - Bash(which vercel)
+  - Bash(which gh)
 ---
 
-# Before and After
+# Before-After Screenshot Skill
 
-Capture side-by-side screenshots of web interfaces or image files for visual regression and PR documentation.
+> **Package:** `@vercel/before-and-after`
+> Never use `before-and-after` (wrong package).
 
-## Activation Contract
+## Agent Behavior Rules
 
-- **Trigger:** User asks to "take before and after", "screenshot comparison", "visual diff", "PR screenshots", "compare old and new", or needs visual UI verification.
-- **Inputs:** Two URLs (`http://`, `https://`, `file://`) or two image paths. If only one URL is provided, prompt user for the "before" state URL.
+**DO NOT:**
+- Switch git branches, stash changes, start dev servers, or assume what "before" is
+- Use `--full` unless user explicitly asks for full page / full scroll capture
 
-## Hard Rules
+**DO:**
+- Use `--markdown` when user wants PR integration or markdown output
+- Use `--mobile` / `--tablet` if user mentions phone, mobile, tablet, responsive, etc.
+- Assume current state is **After**
+- If user provides only one URL or says "PR screenshots" without URLs, **ASK**: "What URL should I use for the 'before' state? (production URL, preview deployment, or another local port)"
 
-- Always use package `@vercel/before-and-after` (never un-scoped `before-and-after`).
-- Never switch git branches, stash uncommitted work, or launch dev servers.
-- Never pass `--full` unless user explicitly requests full scroll capture.
-- Assume current local state represents "After".
-- Never skip pre-flight binary check or Vercel protection status check.
+## Execution Order (MUST follow)
 
-## Decision Gates
+1. **Pre-flight** — `which before-and-after || npm install -g @vercel/before-and-after`
+2. **Protection check** — if `.vercel.app` URL: `curl -s -o /dev/null -w "%{http_code}" "<url>"` (401/403 = protected)
+3. **Capture** — `before-and-after "<before-url>" "<after-url>"`
+4. **Upload** — `./scripts/upload-and-copy.sh <before.png> <after.png> --markdown`
+5. **PR integration** — optionally `gh pr edit` to append markdown
 
-| Condition | Action | Next Step |
-|---|---|---|
-| Binary missing | Run `npm install -g @vercel/before-and-after` | Retry capture |
-| Target is `.vercel.app` (401/403) | Run `vercel inspect <url>` to retrieve bypass token | Inject bypass header |
-| User specifies mobile/tablet | Add `--mobile` (375x812) or `--tablet` (768x1024) | Execute capture |
-| Only 1 URL supplied | Halt and ask for "before" baseline URL | Await user input |
-| PR integration requested | Run `./scripts/upload-and-copy.sh` with `--markdown` | Append via `gh pr edit` |
+**Never skip steps 1-2.**
 
-## Execution Steps
+## Quick Reference
 
-1. Verify CLI installation: `which before-and-after || npm install -g @vercel/before-and-after`.
-2. Check for Vercel deployment protection if URL matches `*.vercel.app`: `curl -s -o /dev/null -w "%{http_code}" "<url>"`.
-3. Capture comparison: `before-and-after "<before-url>" "<after-url>"`.
-4. Upload capture pair to generate markdown: `./scripts/upload-and-copy.sh <before.png> <after.png> --markdown`.
-5. Post to pull request if `gh` CLI is authenticated: `gh pr edit <pr-number> --body "<body-with-markdown>"`.
+```bash
+# Basic usage
+before-and-after <before-url> <after-url>
 
-## Output Contract
+# With selector
+before-and-after url1 url2 ".hero-section"
 
-- Dual image artifacts (`before.png` and `after.png`) or hosted image URLs.
-- Markdown side-by-side comparison table for PR inclusion.
-- Terminal confirmation of PR update or generated markdown snippet.
+# Different selectors for each
+before-and-after url1 url2 ".old-card" ".new-card"
 
-## References
+# Viewports
+before-and-after url1 url2 --mobile    # 375x812
+before-and-after url1 url2 --tablet    # 768x1024
+before-and-after url1 url2 --full      # full scroll
 
-- [CLI Reference](references/cli-reference.md): Command flags, Vercel bypass workflow, upload adapters, and error recovery.
+# From existing images
+before-and-after before.png after.png --markdown
+
+# Via npx (use full package name!)
+npx @vercel/before-and-after url1 url2
+```
+
+| Flag | Description |
+|------|-------------|
+| `-m, --mobile` | Mobile viewport (375x812) |
+| `-t, --tablet` | Tablet viewport (768x1024) |
+| `--size <WxH>` | Custom viewport |
+| `-f, --full` | Full scrollable page |
+| `-s, --selector` | CSS selector to capture |
+| `-o, --output` | Output directory (default: ~/Downloads) |
+| `--markdown` | Upload images & output markdown table |
+| `--upload-url <url>` | Custom upload endpoint (default: 0x0.st) |
+
+## Image Upload
+
+```bash
+# Default (0x0.st - no signup needed)
+./scripts/upload-and-copy.sh before.png after.png --markdown
+
+# GitHub Gist
+IMAGE_ADAPTER=gist ./scripts/upload-and-copy.sh before.png after.png --markdown
+```
+
+## Vercel Deployment Protection
+
+If `.vercel.app` URL returns 401/403:
+
+1. Check Vercel CLI: `which vercel && vercel whoami`
+2. If available: `vercel inspect <url>` to get bypass token
+3. If not: Tell user to provide bypass token, take manual screenshots, or disable protection
+
+## PR Integration
+
+```bash
+# Check for gh CLI
+which gh
+
+# Get current PR
+gh pr view --json number,body
+
+# Append screenshots to PR body
+gh pr edit <number> --body "<existing-body>
+
+## Before and After
+<generated-markdown>"
+```
+
+If no `gh` CLI: output markdown and tell user to paste manually.
+
+## Error Reference
+
+| Error | Fix |
+|-------|-----|
+| `command not found` | `npm install -g @vercel/before-and-after` |
+| `could not determine executable` | Use `npx @vercel/before-and-after` (full name) |
+| 401/403 on .vercel.app | See Vercel protection section |
+| Element not found | Verify selector exists on page |

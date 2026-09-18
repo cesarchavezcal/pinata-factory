@@ -74,7 +74,7 @@ fi
 echo ""
 echo "4. Local Factory Skills (.agents/skills)"
 SKILLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.agents/skills"
-EXPECTED_SKILLS=("new-feature" "code-structure" "unslop" "evidence-driven-testing" "before-and-after" "greploop" "greploop-apps")
+EXPECTED_SKILLS=("new-feature" "code-structure" "unslop" "evidence-driven-testing" "before-and-after" "greploop" "greploop-apps" "grill-me" "playwright-best-practices" "changelog-automation")
 
 for skill in "${EXPECTED_SKILLS[@]}"; do
   SKILL_PATH="$SKILLS_DIR/$skill/SKILL.md"

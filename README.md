@@ -44,14 +44,16 @@ Verify that your local system has the required tooling installed:
 ```
 
 ### 2. Available Skills
-The repository ships with 7 pre-configured skills in `.agents/skills`:
+The repository ships with pre-configured skills in `.agents/skills`:
 - `new-feature`: Worktree isolation.
 - `code-structure`: Service layer architecture.
 - `unslop`: Human-first prose refactoring.
 - `evidence-driven-testing`: Annotated live test recording.
 - `before-and-after`: UI visual regression comparison.
-- `greploop`: Autonomous 5/5 review loop.
-- `greploop-apps`: Large-changeset Greptile review loop.
+- `greploop` & `greploop-apps`: Autonomous Greptile review loops.
+- `grill-me`: Pre-build design and spec stress-testing.
+- `playwright-best-practices`: Resilient E2E testing architecture.
+- `changelog-automation`: Semantic release and changelog generation.
 
 ### 3. Agent Governance
 Detailed instructions, execution constraints, and multi-agent invariants are specified in [**`AGENTS.md`**](AGENTS.md).
